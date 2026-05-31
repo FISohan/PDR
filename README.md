@@ -1,82 +1,109 @@
-# AeroWalk PDR - Pedestrian Dead Reckoning Inertial Tracker
+# AeroWalk Collect - PDR Trajectory Data Collector
 
-AeroWalk PDR is a high-fidelity web application designed for mobile devices that calculates vectors and plots real-time walking paths $(X, Y)$ using the device's hardware sensors: the accelerometer (for step detection) and orientation sensors (gyroscope and magnetometer for heading).
+AeroWalk Collect is a lightweight, minimal web utility designed for recording and logging Pedestrian Dead Reckoning (PDR) walking paths $(X, Y)$ using mobile device sensors. 
 
-It also includes a built-in **Workspace Test Simulator** so that developers and users can fully test the tracking, vector calculations, panning/zooming, and visual chart plotting directly from a desktop browser.
+By removing all visual graphs and secondary diagnostic tables, the interface is optimized for full-screen trajectory mapping, enabling clear visibility and smooth panning/zooming during collection runs.
 
 ---
 
 ## 🚀 Key Features
 
-*   **Real-time Sensor Processing:** Translates physical motion readings directly into relative displacements in real-time.
-*   **Emulated Hardware Step Detection:** Employs a low-pass filter and peak-detection algorithm to isolate the rhythmic vertical acceleration of steps while filtering noise.
-*   **Directional Heading Vectors:** Integrates yaw/compass angles (via gyro and magnetometer) to compute step displacement vectors ($\Delta X, \Delta Y$).
-*   **Interactive 2D Path Plotter:** A zoomable, draggable grid canvas plotting steps, start positions, paths, and direction vectors.
-*   **Sensor Telemetry Charting:** Custom high-performance canvas waveform chart showing raw magnitude, smoothed magnitude, and the dynamic step detection threshold.
-*   **Desk Workspace Test Simulator:** Trigger steps, customize heading angles, auto-walk, or execute a perfect "Square Demo" to verify coordinate closure ($X=0, Y=0$) on desktop.
+*   **Fullscreen Interactive Trajectory Map:** Zoomable and draggable coordinate grid canvas showing the recorded path, steps, start marker, and orientation pointer.
+*   **Start & Stop Logging Workflow:** Simple start/stop recording button. Once clicked, the app connects to raw hardware sensors and plots movements. Stopping the tracking instantly compiles the log and triggers a file download.
+*   **Sensor Data Logging:** Logs high-frequency accelerometer and gyroscope measurements (timestamps, raw forces, rotation rates) alongside the resolved $(X, Y)$ step coordinates for offline validation and research.
+*   **Calibrated Stride Length:** Easy input in the header to calibrate displacements.
+*   **Mobile Touch Gesture Optimization:** Prevented window scroll bouncing when panning the map canvas on a touchscreen.
 
 ---
 
-## 📐 How It Works (The Mathematics)
+## 📐 Inertial Math Formulation
 
-### 1. Step Detection
-The app monitors the magnitude of the 3D acceleration vector:
-
-$$a_{\text{mag}} = \sqrt{a_x^2 + a_y^2 + a_z^2}$$
-
-To remove high-frequency noise, a **low-pass filter (LPF)** is applied with a smoothing coefficient $\alpha$ (typically $0.15$):
-
-$$a_{\text{filtered}}[t] = \alpha \cdot a_{\text{mag}}[t] + (1 - \alpha) \cdot a_{\text{filtered}}[t-1]$$
-
-A step is registered when $a_{\text{filtered}}$ crosses above a dynamic threshold (the running baseline average plus a sensitivity margin) and subsequently drops below a hysteresis threshold, subject to a refractory cooldown period (e.g., $350\text{ ms}$) to prevent double-counting.
-
-### 2. Heading Determination
-The orientation sensors extract the yaw angle ($\theta$ in degrees).
-*   **Compass (Absolute) Mode:** Aligns directly with true geomagnetic North ($0^\circ$).
-*   **Relative Mode:** Sets the direction of the device at the start of tracking as the reference direction ($0^\circ$ on screen).
-
-### 3. Pedestrian Dead Reckoning (PDR) Coordinates
-For every step detected at heading angle $\theta$ (converted to radians), the displacement vector is calculated as:
+### 1. Vector Displacements
+On every step detected at relative heading $\theta$ (yaw), the displacement coordinates increase by:
 
 $$\Delta X = L \cdot \sin(\theta)$$
 
 $$\Delta Y = L \cdot \cos(\theta)$$
 
 Where:
-*   $L$ is the user's calibrated **Stride Length** (e.g., $0.75\text{ meters}$).
-*   $X$ coordinates track East-West displacement ($+X$ is East).
-*   $Y$ coordinates track North-South displacement ($+Y$ is North).
+*   $L$ is the user's calibrated **Stride Length** (e.g. $0.75$ meters).
+*   $X$ tracks East-West displacement ($+X$ is East).
+*   $Y$ tracks North-South displacement ($+Y$ is North).
 
-The new position is accumulated:
-
-$$X_{t} = X_{t-1} + \Delta X$$
-
-$$Y_{t} = Y_{t-1} + \Delta Y$$
+### 2. Step Detection
+Uses a software-level hardware step emulator. It calculates the length of the 3D acceleration vector, filters high-frequency noise with a low-pass filter, computes a moving baseline average, and uses hysteresis crossing triggers to detect walking strides while ignoring phone tremors.
 
 ---
 
-## 📂 File Structure
+## 📊 Collected Data Format (JSON Export)
 
-*   [index.html](file:///home/sohan/Downloads/PDR/index.html) - Structural framework, UI panels, metrics cards, map canvas, and simulator controls.
-*   [style.css](file:///home/sohan/Downloads/PDR/style.css) - Styling rules, glassmorphism UI, responsive grids, and neon telemetry indicators.
-*   [app.js](file:///home/sohan/Downloads/PDR/app.js) - Sensor event bindings, step detection algorithms, vector calculation, canvas renderings, and simulation sequences.
+When you stop recording, a JSON log file named `aerowalk_collect_pdr_[timestamp].json` is automatically downloaded. The structure of the logged file is formatted as:
+
+```json
+{
+  "metadata": {
+    "userAgent": "Mozilla/5.0 ...",
+    "strideLengthMeters": 0.75,
+    "startTimeISO": "2026-05-31T23:50:00.000Z",
+    "endTimeISO": "2026-05-31T23:52:30.000Z",
+    "durationSeconds": 150,
+    "totalSteps": 184,
+    "totalDistanceMeters": 138,
+    "sensorConfigurations": {
+      "sensitivity": 1.25,
+      "refractoryMs": 350,
+      "lowPassAlpha": 0.15
+    }
+  },
+  "path": [
+    {
+      "stepIndex": 0,
+      "x": 0,
+      "y": 0,
+      "heading": 0,
+      "relativeTimeMs": 0
+    },
+    {
+      "stepIndex": 1,
+      "x": 0.25,
+      "y": 0.707,
+      "heading": 20,
+      "relativeTimeMs": 620
+    }
+  ],
+  "sensors": [
+    {
+      "relativeTimeMs": 10,
+      "accelRaw": {
+        "x": 0.12,
+        "y": 9.78,
+        "z": 1.45,
+        "magnitude": 9.88
+      },
+      "gyroRate": {
+        "alpha": 0.05,
+        "beta": -0.02,
+        "gamma": 0.1
+      }
+    }
+  ]
+}
+```
 
 ---
 
-## 🏃 Running the Application
+## 🏃 Running and Deploying
 
 ### Option 1: Start the Local Development Server
-To access motion and orientation sensors, browsers require a secure context (either `HTTPS` or `localhost`). Starting a local server allows you to test it on your local browser immediately.
-
-Run a simple Python HTTP server from the project directory:
+Because browsers restrict motion sensor APIs to secure context hosts, running a server locally is recommended:
 ```bash
 python3 -m http.server 8080
 ```
-Then navigate to: **`http://localhost:8080`**
+Navigate to: **`http://localhost:8080`**
 
-### Option 2: Test on Mobile Devices
-To test with real physical steps:
-1. Ensure the server is hosted over `HTTPS` (or configure local port forwarding via SSH/ADB).
-2. Open the page on your mobile device.
-3. Click **"Enable Device Sensors"** and grant the browser permissions when prompted.
-4. Set the phone flat in your hand pointing in your walking direction and begin walking!
+### Option 2: Deploy to Mobile Devices
+1. Deploy the directory contents to any static host supporting HTTPS (e.g. Netlify, GitHub Pages, Vercel).
+2. Open the URL on your phone's browser.
+3. Tap **"Grant Access & Begin"** to authorize sensors.
+4. Input your stride length, tap **"Start Recording"**, hold your phone flat pointing forward, and walk!
+5. Tap **"Stop & Save Log"** when finished to receive your file.
