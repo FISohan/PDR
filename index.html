@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroWalk PDR - Pedestrian Dead Reckoning Tracker</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-mode">
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-shoe-prints"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>AeroWalk <span class="accent-text">PDR</span></h1>
+                    <p class="subtitle">Pedestrian Dead Reckoning Inertial Tracker</p>
+                </div>
+            </div>
+            <div class="header-status">
+                <div class="status-indicator" id="sensor-status">
+                    <span class="status-dot inactive"></span>
+                    <span class="status-label">Sensors: Inactive</span>
+                </div>
+                <div class="status-indicator" id="tracking-status">
+                    <span class="status-dot inactive"></span>
+                    <span class="status-label">Tracking: Off</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <main class="app-main">
+            <!-- PANEL LEFT: CONTROLS & SETTINGS -->
+            <section class="panel control-panel">
+                <div class="panel-header">
+                    <i class="fa-solid fa-sliders"></i>
+                    <h2>Control Center</h2>
+                </div>
+                
+                <div class="panel-content">
+                    <!-- Session Actions -->
+                    <div class="button-group-vertical">
+                        <button id="btn-request-permission" class="btn btn-primary">
+                            <i class="fa-solid fa-mobile-screen-button"></i> Enable Device Sensors
+                        </button>
+                        <div class="button-group-horizontal">
+                            <button id="btn-start-tracking" class="btn btn-success" disabled>
+                                <i class="fa-solid fa-play"></i> Start
+                            </button>
+                            <button id="btn-stop-tracking" class="btn btn-danger" disabled>
+                                <i class="fa-solid fa-pause"></i> Stop
+                            </button>
+                        </div>
+                        <button id="btn-reset-path" class="btn btn-outline">
+                            <i class="fa-solid fa-rotate-left"></i> Reset Path & Steps
+                        </button>
+                    </div>
+
+                    <!-- PDR Settings -->
+                    <div class="settings-group">
+                        <h3><i class="fa-solid fa-gear"></i> Configuration</h3>
+                        
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="label-text">Stride Length</span>
+                                <span class="label-value" id="val-stride">0.75 m</span>
+                            </div>
+                            <input type="range" id="input-stride" min="0.4" max="1.2" step="0.05" value="0.75">
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="label-text">Heading Mode</span>
+                            </div>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="heading-mode" value="relative" checked>
+                                    <span>Relative (Start = North)</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="heading-mode" value="absolute">
+                                    <span>Compass (Absolute)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="label-text">Step Sensitivity</span>
+                                <span class="label-value" id="val-sensitivity">1.2 m/s²</span>
+                            </div>
+                            <input type="range" id="input-sensitivity" min="0.5" max="3.0" step="0.1" value="1.2">
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="label-text">Refractory Period</span>
+                                <span class="label-value" id="val-refractory">350 ms</span>
+                            </div>
+                            <input type="range" id="input-refractory" min="250" max="600" step="10" value="350">
+                        </div>
+                    </div>
+
+                    <!-- Simulator Panel (For Desktop/Testing) -->
+                    <div class="settings-group simulator-group">
+                        <h3><i class="fa-solid fa-laptop-code"></i> Workspace Test Simulator</h3>
+                        <p class="section-help">No phone? Simulate steps and rotations below to test real-time path plotting.</p>
+                        
+                        <div class="button-group-vertical">
+                            <button id="btn-sim-step" class="btn btn-accent">
+                                <i class="fa-solid fa-shoe-prints"></i> Trigger Single Step
+                            </button>
+                            
+                            <div class="simulator-slider">
+                                <div class="setting-label">
+                                    <span class="label-text">Simulated Heading</span>
+                                    <span class="label-value" id="val-sim-heading">0° (North)</span>
+                                </div>
+                                <input type="range" id="input-sim-heading" min="0" max="359" value="0">
+                            </div>
+
+                            <div class="button-group-horizontal" style="margin-top: 10px;">
+                                <button id="btn-sim-auto-walk" class="btn btn-outline-accent">
+                                    <i class="fa-solid fa-person-walking"></i> Auto-Walk
+                                </button>
+                                <button id="btn-sim-demo-square" class="btn btn-outline-accent">
+                                    <i class="fa-solid fa-square-full"></i> Square Demo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PANEL CENTER: INTERACTIVE CANVAS MAP -->
+            <section class="panel map-panel">
+                <div class="panel-header">
+                    <div class="header-left">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                        <h2>Real-Time Path Plotter (X, Y)</h2>
+                    </div>
+                    <div class="canvas-controls">
+                        <button id="btn-zoom-in" title="Zoom In"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                        <button id="btn-zoom-out" title="Zoom Out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                        <button id="btn-recenter" title="Recenter View"><i class="fa-solid fa-crosshairs"></i></button>
+                        <button id="btn-export" title="Export Path Data"><i class="fa-solid fa-download"></i></button>
+                    </div>
+                </div>
+                
+                <div class="canvas-wrapper">
+                    <!-- Dynamic Path Grid Canvas -->
+                    <canvas id="path-canvas"></canvas>
+                    <div class="canvas-overlay scale-indicator" id="scale-indicator">1 grid unit = 1 meter</div>
+                    <div class="canvas-overlay direction-compass" id="compass-overlay">
+                        <div class="compass-ring">
+                            <span class="direction N">N</span>
+                            <span class="direction E">E</span>
+                            <span class="direction S">S</span>
+                            <span class="direction W">W</span>
+                            <div class="compass-pointer" id="compass-pointer"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PANEL RIGHT: TELEMETRY & LIVE SENSOR VISUALS -->
+            <section class="panel telemetry-panel">
+                <div class="panel-header">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <h2>Live Telemetry</h2>
+                </div>
+                
+                <div class="panel-content">
+                    <!-- Metrics Cards Grid -->
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <span class="metric-label">Steps Detected</span>
+                            <span class="metric-value" id="metric-steps">0</span>
+                            <span class="metric-subtext">hardware emulation</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Total Distance</span>
+                            <span class="metric-value" id="metric-distance">0.00 m</span>
+                            <span class="metric-subtext">stride-calculated</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Current Heading</span>
+                            <span class="metric-value" id="metric-heading">0.0°</span>
+                            <span class="metric-subtext" id="metric-heading-dir">North</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Tracking Duration</span>
+                            <span class="metric-value" id="metric-time">00:00</span>
+                            <span class="metric-subtext">elapsed time</span>
+                        </div>
+                    </div>
+
+                    <!-- Sensor Real-time Readings -->
+                    <div class="telemetry-section">
+                        <h3><i class="fa-solid fa-gauge-high"></i> Sensor Readings</h3>
+                        <div class="reading-table">
+                            <div class="reading-row">
+                                <span class="read-name">Accel (X, Y, Z):</span>
+                                <span class="read-val" id="val-accel">0.00, 0.00, 0.00 m/s²</span>
+                            </div>
+                            <div class="reading-row">
+                                <span class="read-name">Accel Magnitude:</span>
+                                <span class="read-val" id="val-accel-mag">0.00 m/s²</span>
+                            </div>
+                            <div class="reading-row">
+                                <span class="read-name">Gyro Rate (α, β, γ):</span>
+                                <span class="read-val" id="val-gyro">0.0, 0.0, 0.0 °/s</span>
+                            </div>
+                            <div class="reading-row">
+                                <span class="read-name">Device Orientation:</span>
+                                <span class="read-val" id="val-orient">Yaw: 0°, Pitch: 0°, Roll: 0°</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Waveform/Step Chart Canvas -->
+                    <div class="telemetry-section chart-section">
+                        <h3><i class="fa-solid fa-heart-pulse"></i> Step Detection Waveform</h3>
+                        <p class="section-help">Shows linear acceleration magnitude & dynamic threshold</p>
+                        <div class="chart-wrapper">
+                            <canvas id="sensor-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- INTRO & PERMISSION MODAL -->
+        <div class="modal-backdrop" id="intro-modal">
+            <div class="modal">
+                <div class="modal-icon">
+                    <i class="fa-solid fa-person-walking-arrow-right"></i>
+                </div>
+                <h2>AeroWalk PDR</h2>
+                <p>Welcome to <strong>AeroWalk PDR</strong>, a high-fidelity Pedestrian Dead Reckoning app. This application tracks your movement paths in real-time using your phone's acceleration, gyroscope, and magnetometer sensors.</p>
+                
+                <div class="instructions">
+                    <h3>How to use:</h3>
+                    <ul>
+                        <li><i class="fa-solid fa-mobile-button text-accent"></i> <strong>Sensor Access:</strong> Tap the button below to grant permission for motion and orientation sensors.</li>
+                        <li><i class="fa-solid fa-hand-holding-hand text-accent"></i> <strong>Holding position:</strong> Keep your phone flat in your hand pointing in your walking direction for best results.</li>
+                        <li><i class="fa-solid fa-laptop text-accent"></i> <strong>Desktop Simulation:</strong> If testing on a computer, use the "Workspace Test Simulator" on the left panel to test walking, turning, and automatic trajectories!</li>
+                    </ul>
+                </div>
+                
+                <button id="modal-btn-start" class="btn btn-primary btn-large">
+                    Get Started
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main JS Application script -->
+    <script src="app.js"></script>
+</body>
+</html>
