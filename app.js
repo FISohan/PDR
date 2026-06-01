@@ -22,10 +22,10 @@ class PDRTracker {
         this.timerInterval = null;
         
         // Sensor Calibrations (Adjustable in UI)
-        this.strideLength = 0.75; // in meters
-        this.stepSensitivity = 1.25; // m/s^2 above average baseline
-        this.refractoryPeriod = 350; // ms cooldown
-        this.filterAlpha = 0.15; // low-pass filter factor
+        this.strideLength = 0.6; // in meters
+        this.stepSensitivity = 0.6; // m/s^2 above average baseline
+        this.refractoryPeriod = 280; // ms cooldown
+        this.filterAlpha = 0.25; // low-pass filter factor
         
         // Step Filtering Buffer
         this.accelHistory = [];
